@@ -1,9 +1,10 @@
 
 import os
+import librosa
 
 from flask import Flask, escape, request, flash, redirect, url_for, send_from_directory
 from werkzeug.utils import secure_filename
-#from librosa.core import stft
+#from librosa.core import load, stft
 
 
 UPLOAD_FOLDER = 'uploads/'
@@ -32,6 +33,7 @@ def upload_file():
             flash('No selected file')
             return redirect(request.url)
         if file and allowed_file(file.filename):
+            file_data = librosa.core.load(file.stream.read(), 44100)
             filename = secure_filename(file.filename)
             filename_ext = os.path.abspath(app.config['UPLOAD_FOLDER'] + filename)
             #file.save(file.filename)
