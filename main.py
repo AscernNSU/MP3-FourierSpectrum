@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 
 from flask import Flask, render_template, request, flash, redirect
@@ -9,6 +10,7 @@ from librosa import amplitude_to_db
 from librosa.display import specshow
 from librosa.core import load, stft
 
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = 'uploads/'
 STATIC_FOLDER = 'static/'
 ALLOWED_EXTENSIONS = {'mp3', 'wav'}
@@ -16,6 +18,9 @@ ALLOWED_EXTENSIONS = {'mp3', 'wav'}
 app = Flask(__name__, template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['STATIC_FOLDER'] = STATIC_FOLDER
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 1
+
+matplotlib.use('Agg')
 
 
 def allowed_file(filename):
@@ -55,14 +60,13 @@ def upload_file():
 
             specshow(amplitude_to_db(abs_spec, ref=np.max), y_axis='log', x_axis='time')
             plt.title('Спектрограмма мощности')
-            plt.colorbar(format='%+2.0f dB')
+            cbar = plt.colorbar(format='%+2.0f dB')
             plt.tight_layout()
 
-            fig2d_path = os.path.abspath(app.config['STATIC_FOLDER'] + "spectrum-2D.png")
+            fig2d_path = os.path.abspath(APP_ROOT + "\\static\\spectrum-2D.png")
             plt.savefig(fig2d_path)
-
-            fig2d_path = os.path.join(app.config['STATIC_FOLDER'], "spectrum-2D.png")
-            return render_template('mp3spec.html', fig_path=fig2d_path)
+            cbar.remove()
+            return render_template('mp3spec.html')
 
     elif request.method == 'GET':
         return '''
@@ -77,21 +81,15 @@ def upload_file():
         </form>
     </div>
     '''
-    else:
-        return '''
-         <!doctype html>
-    <title>Fourier spectrum visualization of audio mp3 File</title>
-    <h1 align="center" style="font-family:verdana">Добро пожаловать на страницу визуализации спектра mp3!</h1>
-    '''
 
 
-@app.route('/templates/mp3spec.html', methods=['GET', 'POST'])
-def main_page():
-    if request.method == 'POST':
-        if request.form['main_page'] == 'Главная страница':
-            return redirect('/')
-    else:
-        return
+# No caching at all for API endpoints.
+@app.after_request
+def add_header(response):
+    # response.cache_control.no_store = True
+    if 'Cache-Control' not in response.headers:
+        response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 if __name__ == '__main__':
